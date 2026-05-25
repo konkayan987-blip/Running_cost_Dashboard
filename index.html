@@ -6,173 +6,261 @@
 <title>Running Cost Dashboard — ต้นทุนกาว</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
-:root {
-  --bg:#0d1117; --surface:#161b22; --surface2:#1c2128; --border:#30363d;
-  --text:#e6edf3; --muted:#7d8590;
-  --green:#3fb950; --red:#f85149; --yellow:#d29922; --blue:#58a6ff;
-  --font:'IBM Plex Sans Thai',sans-serif; --mono:'IBM Plex Mono',monospace;
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#1c2128;--border:#30363d;
+  --text:#e6edf3;--muted:#7d8590;
+  --green:#3fb950;--red:#f85149;--yellow:#d29922;--blue:#58a6ff;--purple:#bc8cff;--orange:#ffa657;
+  --font:'IBM Plex Sans Thai',sans-serif;--mono:'IBM Plex Mono',monospace;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh}
 
-/* UPLOAD OVERLAY */
-#uploadOverlay{
-  position:fixed;inset:0;background:rgba(13,17,23,.97);z-index:999;
-  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:24px;
+/* ── UPLOAD SCREEN ── */
+#uploadScreen{
+  position:fixed;inset:0;background:var(--bg);z-index:999;
+  display:flex;align-items:center;justify-content:center;flex-direction:column;gap:20px;padding:20px;
 }
-.upload-box{
-  background:var(--surface);border:2px dashed var(--border);border-radius:16px;
-  padding:60px 80px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;
-  max-width:480px;width:90%;
+.up-hero{text-align:center;margin-bottom:4px}
+.up-badge{font-family:var(--mono);font-size:12px;color:var(--blue);letter-spacing:2px;margin-bottom:8px}
+.up-title{font-size:26px;font-weight:700}
+.up-sub{font-size:13px;color:var(--muted);margin-top:5px}
+
+.drop-zone{
+  background:var(--surface);border:2px dashed var(--border);border-radius:14px;
+  padding:40px 56px;text-align:center;cursor:pointer;
+  transition:border-color .2s,background .2s;max-width:560px;width:100%;
 }
-.upload-box:hover,.upload-box.drag{border-color:var(--blue);background:rgba(88,166,255,.05)}
-.upload-icon{font-size:52px;margin-bottom:16px}
-.upload-title{font-size:20px;font-weight:700;color:var(--text);margin-bottom:8px}
-.upload-sub{font-size:13px;color:var(--muted);line-height:1.6}
-.upload-btn{
-  margin-top:20px;background:var(--blue);color:#0d1117;border:none;
-  border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;
+.drop-zone:hover,.drop-zone.drag{border-color:var(--blue);background:rgba(88,166,255,.04)}
+.drop-icon{font-size:44px;margin-bottom:12px}
+.drop-title{font-size:16px;font-weight:700;margin-bottom:6px}
+.drop-sub{font-size:12px;color:var(--muted);line-height:1.7}
+.drop-btn{
+  margin-top:16px;background:var(--blue);color:#0d1117;border:none;
+  border-radius:8px;padding:9px 26px;font-size:13px;font-weight:700;
   font-family:var(--font);cursor:pointer;transition:opacity .2s;
 }
-.upload-btn:hover{opacity:.85}
+.drop-btn:hover{opacity:.85}
 #fileInput{display:none}
-.upload-tip{font-size:12px;color:var(--muted);text-align:center;opacity:.7}
 
-/* HEADER */
+/* Loaded files list */
+.files-panel{max-width:560px;width:100%}
+.files-panel-title{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;font-weight:600;margin-bottom:8px}
+#filesList{display:flex;flex-direction:column;gap:6px}
+.file-chip{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:10px 14px;display:flex;align-items:center;gap:10px;
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+.file-chip .fc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.file-chip .fc-name{font-size:12px;font-weight:600;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-chip .fc-month{font-size:11px;color:var(--blue);font-family:var(--mono);font-weight:600}
+.file-chip .fc-weeks{font-size:10px;color:var(--muted)}
+.file-chip .fc-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;line-height:1;transition:color .2s}
+.file-chip .fc-del:hover{color:var(--red)}
+
+.up-actions{display:flex;gap:10px;align-items:center;max-width:560px;width:100%}
+.go-btn{
+  flex:1;background:linear-gradient(135deg,#1f6feb,#388bfd);color:#fff;border:none;
+  border-radius:8px;padding:11px;font-size:14px;font-weight:700;
+  font-family:var(--font);cursor:pointer;transition:opacity .2s;
+}
+.go-btn:hover{opacity:.88}
+.go-btn:disabled{opacity:.35;pointer-events:none}
+.add-more-btn{
+  background:var(--surface2);border:1px solid var(--border);color:var(--muted);
+  border-radius:8px;padding:11px 18px;font-size:13px;font-family:var(--font);
+  cursor:pointer;transition:all .2s;white-space:nowrap;
+}
+.add-more-btn:hover{border-color:var(--blue);color:var(--blue)}
+
+.up-tip{font-size:11px;color:var(--muted);opacity:.65;text-align:center}
+#up-err{font-size:12px;color:var(--red);display:none;text-align:center}
+#up-loading{font-size:12px;color:var(--blue);display:none;text-align:center}
+
+/* ── HEADER ── */
 .header{
-  background:linear-gradient(135deg,#161b22 0%,#0d1117 100%);
-  border-bottom:1px solid var(--border);padding:18px 28px;
+  background:linear-gradient(135deg,#161b22,#0d1117);
+  border-bottom:1px solid var(--border);padding:16px 26px;
   display:flex;align-items:center;justify-content:space-between;
   position:sticky;top:0;z-index:100;
 }
-.header-left{display:flex;align-items:center;gap:14px}
-.logo{background:linear-gradient(135deg,#1f6feb,#388bfd);border-radius:8px;padding:7px 13px;font-family:var(--mono);font-size:12px;font-weight:600;color:#fff;letter-spacing:1px}
-.h-title{font-size:17px;font-weight:600}
+.header-left{display:flex;align-items:center;gap:13px}
+.logo{background:linear-gradient(135deg,#1f6feb,#388bfd);border-radius:7px;padding:6px 12px;font-family:var(--mono);font-size:11px;font-weight:600;color:#fff;letter-spacing:1px}
+.h-title{font-size:16px;font-weight:600}
 .h-sub{font-size:11px;color:var(--muted);margin-top:2px}
-.header-right{display:flex;gap:10px;align-items:center}
-.month-pill{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 13px;font-size:12px;font-weight:500;color:var(--blue)}
-.reload-btn{
+.header-right{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.hbtn{
   background:var(--surface2);border:1px solid var(--border);color:var(--muted);
-  border-radius:6px;padding:5px 13px;font-size:12px;font-family:var(--font);
-  cursor:pointer;transition:all .2s;
+  border-radius:6px;padding:5px 12px;font-size:11px;font-family:var(--font);
+  cursor:pointer;transition:all .2s;white-space:nowrap;
 }
-.reload-btn:hover{border-color:var(--blue);color:var(--blue)}
+.hbtn:hover{border-color:var(--blue);color:var(--blue)}
+.hbtn.snap{background:linear-gradient(135deg,#1f6feb,#388bfd);border:none;color:#fff;font-weight:600}
+.hbtn.snap:hover{opacity:.85}
+.hbtn.snap.loading{opacity:.6;pointer-events:none}
+.hbtn.label-on{background:rgba(210,153,34,.12);border-color:var(--yellow);color:var(--yellow);font-weight:600}
 
-/* FILTER BAR */
-.fbar{
+/* ── MODE TABS ── */
+.mode-bar{
   background:var(--surface);border-bottom:1px solid var(--border);
-  padding:10px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:0 26px;display:flex;align-items:center;gap:0;
 }
-.flabel{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
-.fgroup{display:flex;gap:5px;flex-wrap:wrap}
+.mode-tab{
+  padding:11px 20px;font-size:12px;font-weight:600;color:var(--muted);
+  cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;
+}
+.mode-tab:hover{color:var(--text)}
+.mode-tab.active{color:var(--blue);border-bottom-color:var(--blue)}
+.mode-divider{width:1px;height:18px;background:var(--border);margin:0 4px}
+
+/* ── FILTER BAR ── */
+.fbar{
+  background:var(--surface2);border-bottom:1px solid var(--border);
+  padding:8px 26px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+}
+.flabel{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+.fgroup{display:flex;gap:4px;flex-wrap:wrap}
 .fbtn{
-  background:var(--surface2);border:1px solid var(--border);color:var(--muted);
-  border-radius:6px;padding:4px 13px;font-size:12px;font-family:var(--font);cursor:pointer;transition:all .2s;
+  background:transparent;border:1px solid var(--border);color:var(--muted);
+  border-radius:5px;padding:3px 11px;font-size:11px;font-family:var(--font);cursor:pointer;transition:all .2s;
 }
 .fbtn:hover{border-color:var(--blue);color:var(--blue)}
 .fbtn.active{background:rgba(88,166,255,.12);border-color:var(--blue);color:var(--blue);font-weight:600}
-.fdiv{width:1px;height:22px;background:var(--border)}
+.fdiv{width:1px;height:18px;background:var(--border)}
 
-/* MAIN */
-.main{padding:24px 28px;display:grid;gap:18px}
+/* ── MAIN ── */
+.main{padding:20px 26px;display:grid;gap:16px}
 
 /* KPI */
-.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
-.kpi{
-  background:var(--surface);border:1px solid var(--border);border-radius:10px;
-  padding:18px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s;
-}
-.kpi:hover{transform:translateY(-2px);border-color:rgba(88,166,255,.4)}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;position:relative;overflow:hidden;transition:transform .18s}
+.kpi:hover{transform:translateY(-2px)}
 .kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
-.kpi.c-green::before{background:var(--green)}
-.kpi.c-red::before{background:var(--red)}
-.kpi.c-yellow::before{background:var(--yellow)}
-.kpi.c-blue::before{background:var(--blue)}
-.kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;font-weight:500;margin-bottom:8px}
-.kpi-val{font-size:30px;font-weight:700;font-family:var(--mono);line-height:1}
-.kpi-val.c-green{color:var(--green)}.kpi-val.c-red{color:var(--red)}
-.kpi-val.c-yellow{color:var(--yellow)}.kpi-val.c-blue{color:var(--blue)}
-.kpi-sub{font-size:11px;color:var(--muted);margin-top:7px}
-.badge{display:inline-flex;align-items:center;font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;margin-top:7px}
+.kpi.c-green::before{background:var(--green)}.kpi.c-red::before{background:var(--red)}
+.kpi.c-yellow::before{background:var(--yellow)}.kpi.c-blue::before{background:var(--blue)}.kpi.c-purple::before{background:var(--purple)}
+.kpi-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;font-weight:500;margin-bottom:7px}
+.kpi-val{font-size:26px;font-weight:700;font-family:var(--mono);line-height:1}
+.kpi-val.c-green{color:var(--green)}.kpi-val.c-red{color:var(--red)}.kpi-val.c-yellow{color:var(--yellow)}.kpi-val.c-blue{color:var(--blue)}.kpi-val.c-purple{color:var(--purple)}
+.kpi-sub{font-size:10px;color:var(--muted);margin-top:6px}
+.badge{display:inline-flex;font-size:9px;font-weight:600;padding:2px 6px;border-radius:3px;margin-top:5px}
 .badge.over{background:rgba(248,81,73,.15);color:var(--red)}
 .badge.ok{background:rgba(63,185,80,.15);color:var(--green)}
 
 /* CHARTS */
-.cgrid2{display:grid;grid-template-columns:2fr 1fr;gap:18px}
-.cgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
-.ccard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px;transition:border-color .2s}
-.ccard:hover{border-color:rgba(48,54,61,.8)}
-.cheader{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
-.ctitle{font-size:13px;font-weight:600}
-.csub{font-size:11px;color:var(--muted);margin-top:2px}
-.ctag{font-size:10px;padding:2px 9px;border-radius:20px;background:rgba(88,166,255,.1);color:var(--blue);border:1px solid rgba(88,166,255,.2)}
-.cwrap{position:relative;height:210px}
-.cwrap.tall{height:260px}
-.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px}
-.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
-.ldot{width:9px;height:9px;border-radius:50%}
+.cgrid2{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.cgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.ccard{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.cheader{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px}
+.ctitle{font-size:12px;font-weight:600}
+.csub{font-size:10px;color:var(--muted);margin-top:2px}
+.ctag{font-size:10px;padding:2px 8px;border-radius:20px;background:rgba(88,166,255,.1);color:var(--blue);border:1px solid rgba(88,166,255,.2)}
+.cwrap{position:relative;height:200px}
+.cwrap.tall{height:250px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:9px}
+.leg{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
+.ldot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.lline{width:14px;height:2px;flex-shrink:0}
 
 /* TABLES */
 .tcard{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
-.thead-row{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.ttitle{font-size:13px;font-weight:600}
+.thead-row{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.ttitle{font-size:12px;font-weight:600}
 table{width:100%;border-collapse:collapse}
 thead tr{background:var(--surface2)}
-th{padding:9px 14px;font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
-td{padding:11px 14px;font-size:12px;border-bottom:1px solid rgba(48,54,61,.4);vertical-align:middle}
+th{padding:8px 13px;font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.4px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 13px;font-size:11px;border-bottom:1px solid rgba(48,54,61,.35);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tr:hover td{background:var(--surface2)}
 .mono{font-family:var(--mono)}
-.sp-red{background:rgba(248,81,73,.15);color:var(--red);padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
-.sp-green{background:rgba(63,185,80,.15);color:var(--green);padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
-.sp-yellow{background:rgba(210,153,34,.15);color:var(--yellow);padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
-.sp-blue{background:rgba(88,166,255,.12);color:var(--blue);padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
-.sp-imm{background:rgba(88,166,255,.12);color:var(--blue);padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
-.sp-con{background:rgba(210,153,34,.12);color:var(--yellow);padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
-.sp-root{background:rgba(248,81,73,.12);color:var(--red);padding:1px 7px;border-radius:3px;font-size:10px;font-weight:600}
-.pbar-bg{background:var(--surface2);border-radius:3px;height:5px;margin-top:4px}
-.pbar{height:5px;border-radius:3px;transition:width .6s}
+.sp-red{background:rgba(248,81,73,.15);color:var(--red);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.sp-green{background:rgba(63,185,80,.15);color:var(--green);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.sp-yellow{background:rgba(210,153,34,.15);color:var(--yellow);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.sp-blue{background:rgba(88,166,255,.12);color:var(--blue);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.sp-imm{background:rgba(88,166,255,.12);color:var(--blue);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.sp-con{background:rgba(210,153,34,.12);color:var(--yellow);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.sp-root{background:rgba(248,81,73,.12);color:var(--red);padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+.pbar-bg{background:var(--surface2);border-radius:3px;height:4px;margin-top:4px}
+.pbar{height:4px;border-radius:3px;transition:width .5s}
 .pbar.g{background:var(--green)}.pbar.y{background:var(--yellow)}.pbar.b{background:var(--blue)}.pbar.r{background:var(--red)}
 
-/* LOADING */
-#loadingMsg{display:none;padding:12px 24px;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.3);border-radius:8px;font-size:13px;color:var(--blue);text-align:center}
-#errorMsg{display:none;padding:12px 24px;background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:8px;font-size:13px;color:var(--red);text-align:center}
+/* MONTH CHIP IN TABLE */
+.mchip{display:inline-block;padding:1px 7px;border-radius:10px;font-size:10px;font-weight:700;font-family:var(--mono)}
 
-/* LAST UPDATED */
-.last-updated{font-size:11px;color:var(--muted);padding:8px 28px;background:var(--surface);border-bottom:1px solid var(--border)}
+/* COMPARE SECTION */
+#compareSection{display:none}
+.compare-insight{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px}
+.ci-title{font-size:13px;font-weight:600;margin-bottom:14px}
+.insight-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.insight-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:13px}
+.ic-label{font-size:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.ic-val{font-size:18px;font-weight:700;font-family:var(--mono)}
+.ic-sub{font-size:10px;color:var(--muted);margin-top:4px}
+.trend-up{color:var(--red)}
+.trend-down{color:var(--green)}
+.trend-same{color:var(--muted)}
+
+/* TOAST */
+#snapToast{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  background:#1c2128;border:1px solid var(--green);border-radius:8px;
+  padding:11px 18px;font-size:12px;color:var(--green);
+  display:none;align-items:center;gap:7px;
+  box-shadow:0 4px 20px rgba(0,0,0,.4);
+  animation:slideUp .25s ease;
+}
+@keyframes slideUp{from{transform:translateY(14px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+.last-bar{font-size:10px;color:var(--muted);padding:6px 26px;background:var(--surface);border-bottom:1px solid var(--border)}
 
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:var(--bg)}
 ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 
-@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,1fr)}.cgrid2,.cgrid3{grid-template-columns:1fr}}
-@media(max-width:600px){.main{padding:12px}.header,.fbar{padding:12px 14px}.kpi-row{grid-template-columns:1fr 1fr}}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(3,1fr)}.cgrid2,.cgrid3{grid-template-columns:1fr}}
+@media(max-width:660px){.kpi-row{grid-template-columns:1fr 1fr}.header,.fbar{padding:10px 14px}.main{padding:12px 14px}}
 </style>
 </head>
 <body>
 
-<!-- UPLOAD OVERLAY -->
-<div id="uploadOverlay">
-  <div style="text-align:center">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--blue);letter-spacing:2px;margin-bottom:8px">RC-04 · RUNNING COST DASHBOARD</div>
-    <div style="font-size:26px;font-weight:700;color:var(--text)">ต้นทุนกาว — Weekly Tracking</div>
-    <div style="font-size:13px;color:var(--muted);margin-top:6px">อัปโหลดไฟล์ Excel เพื่อโหลดข้อมูลล่าสุด</div>
+<!-- ══ UPLOAD SCREEN ══ -->
+<div id="uploadScreen">
+  <div class="up-hero">
+    <div class="up-badge">RC-04 · RUNNING COST DASHBOARD</div>
+    <div class="up-title">ต้นทุนกาว — Weekly Tracking</div>
+    <div class="up-sub">อัปโหลดไฟล์ Excel ได้หลายเดือนพร้อมกัน เพื่อเปรียบเทียบและวิเคราะห์แนวโน้ม</div>
   </div>
-  <div class="upload-box" id="dropZone" onclick="document.getElementById('fileInput').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
-    <div class="upload-icon">📊</div>
-    <div class="upload-title">อัปโหลดไฟล์ Excel</div>
-    <div class="upload-sub">รองรับไฟล์ <strong>.xlsx</strong> · อ่านข้อมูลจาก Sheet <strong>Summary_Helper</strong> และ <strong>Input</strong></div>
-    <button class="upload-btn">เลือกไฟล์</button>
+
+  <div class="drop-zone" id="dropZone"
+    onclick="document.getElementById('fileInput').click()"
+    ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)">
+    <div class="drop-icon">📂</div>
+    <div class="drop-title">ลากไฟล์มาวางที่นี่</div>
+    <div class="drop-sub">รองรับ <strong>.xlsx</strong> หลายไฟล์พร้อมกัน<br>อ่านจาก Sheet <strong>Summary_Helper</strong> และ <strong>Input</strong></div>
+    <button class="drop-btn" onclick="event.stopPropagation();document.getElementById('fileInput').click()">เลือกไฟล์</button>
   </div>
-  <div class="upload-tip">ไฟล์จะถูกประมวลผลใน Browser เท่านั้น ข้อมูลไม่ถูกส่งไปที่เซิร์ฟเวอร์</div>
-  <div id="loadingMsg">⏳ กำลังโหลดข้อมูล...</div>
-  <div id="errorMsg"></div>
-  <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFile(this.files[0])">
+  <input type="file" id="fileInput" accept=".xlsx,.xls" multiple onchange="handleFiles(this.files)">
+
+  <div class="files-panel" id="filesPanel" style="display:none">
+    <div class="files-panel-title">ไฟล์ที่โหลดแล้ว (<span id="filesCount">0</span>)</div>
+    <div id="filesList"></div>
+  </div>
+
+  <div class="up-actions" id="upActions" style="display:none">
+    <button class="add-more-btn" onclick="document.getElementById('fileInput').click()">+ เพิ่มไฟล์</button>
+    <button class="go-btn" id="goBtn" onclick="launchDashboard()">🚀 เปิด Dashboard</button>
+  </div>
+
+  <div class="up-tip">ข้อมูลถูกประมวลผลใน Browser เท่านั้น ไม่ส่งออกไปที่ใด</div>
+  <div id="up-loading">⏳ กำลังโหลด...</div>
+  <div id="up-err"></div>
 </div>
 
-<!-- DASHBOARD (hidden until file loaded) -->
+<!-- ══ DASHBOARD ══ -->
 <div id="dashboard" style="display:none">
 
 <div class="header">
@@ -180,68 +268,79 @@ tr:hover td{background:var(--surface2)}
     <div class="logo">RC-04</div>
     <div>
       <div class="h-title">Running Cost Dashboard — ต้นทุนกาว</div>
-      <div class="h-sub" id="branchLabel">Glue Mixing Cost Tracking · Branch Weekly Monitoring</div>
+      <div class="h-sub" id="hSub">—</div>
     </div>
   </div>
   <div class="header-right">
-    <div class="month-pill" id="monthPill">📅 —</div>
-    <button class="reload-btn" onclick="reloadFile()">⬆ เปลี่ยนไฟล์</button>
+    <div id="monthPills" style="display:flex;gap:5px;flex-wrap:wrap"></div>
+    <button class="hbtn snap" id="snapBtn" onclick="takeScreenshot()">📷 แคปหน้าจอ</button>
+    <button class="hbtn" id="labelBtn" onclick="toggleLabels()">🔢 แสดงตัวเลข</button>
+    <button class="hbtn" onclick="backToUpload()">⬆ เปลี่ยนไฟล์</button>
   </div>
 </div>
 
-<div class="last-updated" id="lastUpdated">อัปโหลดเมื่อ: —</div>
+<div class="last-bar" id="lastBar">—</div>
+
+<!-- MODE TABS -->
+<div class="mode-bar">
+  <div class="mode-tab active" id="tabSingle" onclick="setMode('single')">📊 รายเดือน</div>
+  <div class="mode-divider" id="tabDivider" style="display:none"></div>
+  <div class="mode-tab" id="tabCompare" onclick="setMode('compare')" style="display:none">📈 เปรียบเทียบหลายเดือน</div>
+</div>
 
 <!-- FILTER BAR -->
 <div class="fbar">
-  <span class="flabel">Week</span>
+  <span class="flabel">Month</span>
+  <div class="fgroup" id="monthFilter"></div>
+  <div class="fdiv" id="wkDiv"></div>
+  <span class="flabel" id="wkLabel">Week</span>
   <div class="fgroup" id="weekFilter"></div>
   <div class="fdiv"></div>
   <span class="flabel">Status</span>
   <div class="fgroup" id="statusFilter">
     <button class="fbtn active" data-v="all" onclick="fStatus(this,'all')">All</button>
-    <button class="fbtn" data-v="Red" onclick="fStatus(this,'Red')">🔴 Over Target</button>
+    <button class="fbtn" data-v="Red" onclick="fStatus(this,'Red')">🔴 Over</button>
     <button class="fbtn" data-v="Green" onclick="fStatus(this,'Green')">🟢 On Target</button>
   </div>
   <div class="fdiv"></div>
-  <span class="flabel">Cause Level</span>
+  <span class="flabel">Cause</span>
   <div class="fgroup" id="causeFilter">
     <button class="fbtn active" data-v="all" onclick="fCause(this,'all')">All</button>
-    <button class="fbtn" data-v="Immediate" onclick="fCause(this,'Immediate')">Immediate</button>
-    <button class="fbtn" data-v="Contributing" onclick="fCause(this,'Contributing')">Contributing</button>
+    <button class="fbtn" data-v="Immediate" onclick="fCause(this,'Immediate')">Imm.</button>
+    <button class="fbtn" data-v="Contributing" onclick="fCause(this,'Contributing')">Contrib.</button>
     <button class="fbtn" data-v="Root" onclick="fCause(this,'Root')">Root</button>
   </div>
 </div>
 
+<!-- ── SINGLE MONTH VIEW ── -->
+<div id="singleView">
 <div class="main">
-
-  <!-- KPI -->
   <div class="kpi-row">
-    <div class="kpi c-green"><div class="kpi-lbl">Monthly Target</div><div class="kpi-val c-green mono" id="k-target">—</div><div class="kpi-sub">฿/unit</div></div>
-    <div class="kpi c-red"><div class="kpi-lbl">Monthly Actual</div><div class="kpi-val c-red mono" id="k-actual">—</div><div class="kpi-sub">฿/unit</div><div class="badge over" id="k-badge">▲ Over Target</div></div>
-    <div class="kpi c-yellow"><div class="kpi-lbl">Monthly Gap</div><div class="kpi-val c-yellow mono" id="k-gap">—</div><div class="kpi-sub">vs Target (฿/unit)</div></div>
-    <div class="kpi c-blue"><div class="kpi-lbl">Total Issues / Recurring</div><div class="kpi-val c-blue mono" id="k-issues">—</div><div class="kpi-sub" id="k-issues-sub">Recurring Causes: —</div></div>
+    <div class="kpi c-green"><div class="kpi-lbl">Monthly Target</div><div class="kpi-val c-green mono" id="k-target">—</div><div class="kpi-sub">฿/Kg</div></div>
+    <div class="kpi c-red"><div class="kpi-lbl">Monthly Actual</div><div class="kpi-val c-red mono" id="k-actual">—</div><div class="kpi-sub">฿/Kg</div><div class="badge over" id="k-badge">▲ Over</div></div>
+    <div class="kpi c-yellow"><div class="kpi-lbl">Monthly Gap</div><div class="kpi-val c-yellow mono" id="k-gap">—</div><div class="kpi-sub">฿/Kg vs Target</div></div>
+    <div class="kpi c-blue"><div class="kpi-lbl">Total Issues</div><div class="kpi-val c-blue mono" id="k-issues">—</div><div class="kpi-sub" id="k-isub">—</div></div>
+    <div class="kpi c-purple"><div class="kpi-lbl">Action Done</div><div class="kpi-val c-purple mono" id="k-done">—</div><div class="kpi-sub" id="k-dsub">—</div></div>
   </div>
 
-  <!-- CHART ROW 1 -->
   <div class="cgrid2">
     <div class="ccard">
-      <div class="cheader"><div><div class="ctitle">Weekly Cost Trend</div><div class="csub">Actual vs Target per week (฿/unit)</div></div><span class="ctag">Line</span></div>
+      <div class="cheader"><div><div class="ctitle">Weekly Cost Trend</div><div class="csub">Actual vs Target (฿/Kg)</div></div><span class="ctag">Line</span></div>
       <div class="cwrap tall"><canvas id="trendChart"></canvas></div>
       <div class="legend">
-        <div class="leg"><div class="ldot" style="background:var(--green)"></div>Target</div>
+        <div class="leg"><div class="lline" style="background:var(--green);border-top:2px dashed var(--green)"></div>Target</div>
         <div class="leg"><div class="ldot" style="background:var(--red)"></div>Actual</div>
       </div>
     </div>
     <div class="ccard">
-      <div class="cheader"><div><div class="ctitle">Weekly Gap</div><div class="csub">Over vs Target each week</div></div><span class="ctag">Bar</span></div>
+      <div class="cheader"><div><div class="ctitle">Weekly Gap</div><div class="csub">vs Target each week</div></div><span class="ctag">Bar</span></div>
       <div class="cwrap tall"><canvas id="gapChart"></canvas></div>
     </div>
   </div>
 
-  <!-- CHART ROW 2 -->
   <div class="cgrid3">
     <div class="ccard">
-      <div class="cheader"><div><div class="ctitle">Cause Distribution</div><div class="csub">Immediate / Contributing / Root</div></div><span class="ctag">Donut</span></div>
+      <div class="cheader"><div><div class="ctitle">Cause Distribution</div><div class="csub">Imm / Contributing / Root</div></div><span class="ctag">Donut</span></div>
       <div class="cwrap"><canvas id="causeDonut"></canvas></div>
     </div>
     <div class="ccard">
@@ -249,234 +348,391 @@ tr:hover td{background:var(--surface2)}
       <div class="cwrap"><canvas id="actionDonut"></canvas></div>
     </div>
     <div class="ccard">
-      <div class="cheader"><div><div class="ctitle">Cause Frequency</div><div class="csub">Recurring causes by code</div></div><span class="ctag">Horiz. Bar</span></div>
+      <div class="cheader"><div><div class="ctitle">Cause Frequency</div><div class="csub">Top recurring causes</div></div><span class="ctag">H. Bar</span></div>
       <div class="cwrap"><canvas id="freqChart"></canvas></div>
     </div>
   </div>
 
-  <!-- WEEKLY TABLE -->
   <div class="tcard">
-    <div class="thead-row"><div class="ttitle">📊 Weekly Performance Summary</div><div style="font-size:11px;color:var(--muted)" id="wkTableLbl">Showing: All</div></div>
-    <table><thead><tr><th>Week</th><th>Target</th><th>Actual</th><th>Gap</th><th>Status</th><th>Main Problem</th><th>Immediate Cause</th><th>Contributing Cause</th><th>Root Cause</th></tr></thead>
+    <div class="thead-row"><div class="ttitle">📊 Weekly Performance</div><div style="font-size:10px;color:var(--muted)" id="wkTableLbl">All</div></div>
+    <table><thead><tr><th>Week</th><th>Target</th><th>Actual</th><th>Gap</th><th>Status</th><th>Problem</th><th>Immediate</th><th>Contributing</th><th>Root Cause</th></tr></thead>
     <tbody id="weekTbody"></tbody></table>
   </div>
 
-  <!-- CAUSE + ACTION SUMMARY -->
   <div class="cgrid2">
     <div class="tcard">
-      <div class="thead-row"><div class="ttitle">🔍 Cause Analysis</div><div style="font-size:11px;color:var(--muted)" id="causeTblLbl">All Levels</div></div>
+      <div class="thead-row"><div class="ttitle">🔍 Cause Analysis</div><div style="font-size:10px;color:var(--muted)" id="causeTblLbl">All</div></div>
       <table><thead><tr><th>Rank</th><th>Code</th><th>Level</th><th>Description</th><th>Freq.</th></tr></thead>
       <tbody id="causeTbody"></tbody></table>
     </div>
     <div class="tcard">
       <div class="thead-row"><div class="ttitle">⚙️ Action Plan Summary</div></div>
-      <table><thead><tr><th>Level</th><th>Causes</th><th>Logged</th><th>Done</th><th>Completion</th></tr></thead>
+      <table><thead><tr><th>Level</th><th>Causes</th><th>Logged</th><th>Done</th><th>%</th></tr></thead>
       <tbody id="actionSumTbody"></tbody></table>
     </div>
   </div>
 
-  <!-- ACTION DETAIL -->
   <div class="tcard" id="actionDetailSection" style="display:none">
-    <div class="thead-row">
-      <div><div class="ttitle">📋 Action Plan Detail</div><div style="font-size:11px;color:var(--muted);margin-top:3px" id="actionDetailTitle">—</div></div>
-    </div>
+    <div class="thead-row"><div><div class="ttitle">📋 Action Plan Detail</div><div style="font-size:10px;color:var(--muted);margin-top:2px" id="actionDetailTitle">—</div></div></div>
     <table><thead><tr><th>#</th><th>Action Step</th><th>Owner</th><th>Co-Owner</th><th>Progress</th><th>Status</th></tr></thead>
     <tbody id="actionDetailTbody"></tbody></table>
   </div>
+</div>
+</div><!-- /singleView -->
 
-</div><!-- /main -->
+<!-- ── COMPARE VIEW ── -->
+<div id="compareView" style="display:none">
+<div class="main">
+
+  <!-- Summary KPI all months -->
+  <div class="kpi-row" id="compareKpiRow"></div>
+
+  <!-- Multi-month trend -->
+  <div class="cgrid2">
+    <div class="ccard">
+      <div class="cheader"><div><div class="ctitle">Monthly Actual vs Target — แนวโน้ม</div><div class="csub">เปรียบเทียบ Actual ทุกเดือน (฿/Kg)</div></div><span class="ctag">Multi-Line</span></div>
+      <div class="cwrap tall"><canvas id="multiTrendChart"></canvas></div>
+      <div class="legend" id="multiTrendLegend"></div>
+    </div>
+    <div class="ccard">
+      <div class="cheader"><div><div class="ctitle">Monthly Gap Comparison</div><div class="csub">Gap รายเดือน vs Target</div></div><span class="ctag">Grouped Bar</span></div>
+      <div class="cwrap tall"><canvas id="multiGapChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="cgrid2">
+    <div class="ccard">
+      <div class="cheader"><div><div class="ctitle">Monthly Average Cost</div><div class="csub">ต้นทุนเฉลี่ยต่อเดือน vs Target</div></div><span class="ctag">Bar</span></div>
+      <div class="cwrap"><canvas id="avgCostChart"></canvas></div>
+    </div>
+    <div class="ccard">
+      <div class="cheader"><div><div class="ctitle">Action Completion by Month</div><div class="csub">% Action Done รายเดือน</div></div><span class="ctag">Bar</span></div>
+      <div class="cwrap"><canvas id="actionCompChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Insight cards -->
+  <div class="compare-insight">
+    <div class="ci-title">📌 สรุปเชิงวิเคราะห์ — เปรียบเทียบหลายเดือน</div>
+    <div class="insight-grid" id="insightGrid"></div>
+  </div>
+
+  <!-- All-months weekly table -->
+  <div class="tcard">
+    <div class="thead-row"><div class="ttitle">📊 ข้อมูลรายสัปดาห์ทุกเดือน</div><div style="font-size:10px;color:var(--muted)" id="allWkLbl">All</div></div>
+    <table><thead><tr><th>Month</th><th>Week</th><th>Target</th><th>Actual</th><th>Gap</th><th>Status</th><th>Problem</th></tr></thead>
+    <tbody id="allWeekTbody"></tbody></table>
+  </div>
+
+</div>
+</div><!-- /compareView -->
+
 </div><!-- /dashboard -->
 
+<div id="snapToast">✅ บันทึกรูปภาพสำเร็จ!</div>
+
 <script>
-// ============ STATE ============
-let DATA = {};
-let activeWeek='all', activeStatus='all', activeCause='all';
-let charts={};
+// ══════════════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════════════
+const MONTH_COLORS=['#58a6ff','#3fb950','#f85149','#d29922','#bc8cff','#ffa657','#39d353','#ff7b72'];
+const MONTH_NAMES={1:'ม.ค.',2:'ก.พ.',3:'มี.ค.',4:'เม.ย.',5:'พ.ค.',6:'มิ.ย.',7:'ก.ค.',8:'ส.ค.',9:'ก.ย.',10:'ต.ค.',11:'พ.ย.',12:'ธ.ค.'};
 
-// ============ DRAG & DROP ============
-function handleDragOver(e){ e.preventDefault(); document.getElementById('dropZone').classList.add('drag'); }
-function handleDragLeave(e){ document.getElementById('dropZone').classList.remove('drag'); }
-function handleDrop(e){ e.preventDefault(); document.getElementById('dropZone').classList.remove('drag'); const f=e.dataTransfer.files[0]; if(f) handleFile(f); }
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+let allMonthsData = [];   // [{monthKey,monthLabel,color,...parsed data}]
+let activeMode = 'single';
+let activeMonth = null;   // monthKey for single view
+let activeWeek = 'all';
+let activeStatus = 'all';
+let activeCause = 'all';
+let showLabels = false;
+let charts = {};
 
-function reloadFile(){
-  document.getElementById('dashboard').style.display='none';
-  document.getElementById('uploadOverlay').style.display='flex';
-  document.getElementById('loadingMsg').style.display='none';
-  document.getElementById('errorMsg').style.display='none';
-  document.getElementById('fileInput').value='';
+Chart.register(ChartDataLabels);
+Chart.defaults.set('plugins.datalabels',{display:false});
+
+// ══════════════════════════════════════════════
+//  UPLOAD
+// ══════════════════════════════════════════════
+function onDragOver(e){ e.preventDefault(); document.getElementById('dropZone').classList.add('drag'); }
+function onDragLeave(e){ document.getElementById('dropZone').classList.remove('drag'); }
+function onDrop(e){
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  handleFiles(e.dataTransfer.files);
 }
 
-// ============ FILE HANDLER ============
-function handleFile(file){
-  if(!file) return;
-  const lm=document.getElementById('loadingMsg'), em=document.getElementById('errorMsg');
-  lm.style.display='block'; em.style.display='none';
-  const reader=new FileReader();
-  reader.onload=function(e){
+async function handleFiles(fileList){
+  const errEl=document.getElementById('up-err');
+  const ldEl=document.getElementById('up-loading');
+  errEl.style.display='none'; ldEl.style.display='block';
+  const files=Array.from(fileList).filter(f=>/\.(xlsx|xls)$/i.test(f.name));
+  if(!files.length){ ldEl.style.display='none'; errEl.textContent='⚠ ไม่พบไฟล์ .xlsx'; errEl.style.display='block'; return; }
+  for(const f of files){
     try{
-      const wb=XLSX.read(e.target.result,{type:'array'});
-      parseWorkbook(wb, file.name);
-      document.getElementById('lastUpdated').textContent='อัปโหลดเมื่อ: '+new Date().toLocaleString('th-TH')+' · ไฟล์: '+file.name;
-    }catch(err){
-      lm.style.display='none';
-      em.style.display='block';
-      em.textContent='❌ ไม่สามารถอ่านไฟล์ได้: '+err.message;
+      const buf=await f.arrayBuffer();
+      const wb=XLSX.read(buf,{type:'array'});
+      const parsed=parseWorkbook(wb,f.name);
+      // Avoid duplicate monthKey
+      if(allMonthsData.find(m=>m.monthKey===parsed.monthKey)){
+        // replace
+        const idx=allMonthsData.findIndex(m=>m.monthKey===parsed.monthKey);
+        allMonthsData[idx]={...parsed,color:allMonthsData[idx].color};
+      } else {
+        parsed.color=MONTH_COLORS[allMonthsData.length % MONTH_COLORS.length];
+        allMonthsData.push(parsed);
+      }
+    }catch(e){
+      errEl.textContent='❌ '+f.name+': '+e.message; errEl.style.display='block';
     }
-  };
-  reader.readAsArrayBuffer(file);
+  }
+  ldEl.style.display='none';
+  renderFilesList();
 }
 
-// ============ PARSE WORKBOOK ============
-function parseWorkbook(wb, fname){
-  // --- Summary_Helper ---
-  const sh = wb.Sheets['Summary_Helper'];
-  if(!sh) throw new Error('ไม่พบ Sheet "Summary_Helper" ในไฟล์นี้');
-  const sh_arr = XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+function renderFilesList(){
+  const panel=document.getElementById('filesPanel');
+  const list=document.getElementById('filesList');
+  const actions=document.getElementById('upActions');
+  if(!allMonthsData.length){ panel.style.display='none'; actions.style.display='none'; return; }
+  panel.style.display='block'; actions.style.display='flex';
+  document.getElementById('filesCount').textContent=allMonthsData.length;
+  list.innerHTML=allMonthsData.map((m,i)=>`
+    <div class="file-chip">
+      <div class="fc-dot" style="background:${m.color}"></div>
+      <div class="fc-name">${m.fileName}</div>
+      <div class="fc-month">${m.monthLabel}</div>
+      <div class="fc-weeks">${m.weeklyData.length} สัปดาห์</div>
+      <button class="fc-del" onclick="removeMonth(${i})" title="ลบ">✕</button>
+    </div>`).join('');
+}
 
-  // KPI header rows (rows 2-5, 0-indexed)
-  const month   = sh_arr[2]?.[3] || '—';
-  const mTarget = parseFloat(sh_arr[3]?.[1]) || 0;
-  const mActual = parseFloat(sh_arr[3]?.[3]) || 0;
-  const mGap    = parseFloat(sh_arr[4]?.[1]) || 0;
-  const curWeek = sh_arr[4]?.[3] || '—';
-  const totalIssues = parseInt(sh_arr[5]?.[1]) || 0;
-  const recurCauses = parseInt(sh_arr[5]?.[3]) || 0;
+function removeMonth(i){
+  allMonthsData.splice(i,1);
+  // Reassign colors
+  allMonthsData.forEach((m,j)=>{ m.color=MONTH_COLORS[j % MONTH_COLORS.length]; });
+  renderFilesList();
+}
 
-  // Weekly rows: start at row 8 (index 8), cols 0-6
-  // Row7 = header: Week,Target,Actual,Gap,Status,Main Problem
+function launchDashboard(){
+  if(!allMonthsData.length) return;
+  // Sort by month number
+  allMonthsData.sort((a,b)=>a.monthNum-b.monthNum);
+  // Re-assign colors after sort
+  allMonthsData.forEach((m,j)=>{ m.color=MONTH_COLORS[j % MONTH_COLORS.length]; });
+
+  document.getElementById('uploadScreen').style.display='none';
+  document.getElementById('dashboard').style.display='block';
+
+  // Show compare tab only if >1 month
+  if(allMonthsData.length>1){
+    document.getElementById('tabCompare').style.display='block';
+    document.getElementById('tabDivider').style.display='block';
+  } else {
+    document.getElementById('tabCompare').style.display='none';
+    document.getElementById('tabDivider').style.display='none';
+  }
+
+  // Header pills
+  const pillsEl=document.getElementById('monthPills');
+  pillsEl.innerHTML=allMonthsData.map(m=>`<span style="background:${m.color}22;border:1px solid ${m.color}55;color:${m.color};border-radius:5px;padding:4px 10px;font-size:11px;font-weight:600;font-family:var(--mono)">📅${m.monthLabel}</span>`).join('');
+
+  document.getElementById('hSub').textContent='Loaded: '+allMonthsData.map(m=>m.monthLabel).join(', ')+' · '+allMonthsData.length+' เดือน';
+  document.getElementById('lastBar').textContent='อัปโหลดเมื่อ: '+new Date().toLocaleString('th-TH')+' · '+allMonthsData.length+' ไฟล์';
+
+  // Set default single month = first
+  activeMonth=allMonthsData[0].monthKey;
+
+  // Build month filter
+  buildMonthFilter();
+  setMode('single');
+}
+
+function backToUpload(){
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('uploadScreen').style.display='flex';
+  Object.values(charts).forEach(c=>c.destroy()); charts={};
+}
+
+// ══════════════════════════════════════════════
+//  PARSE WORKBOOK
+// ══════════════════════════════════════════════
+function parseWorkbook(wb,fname){
+  const sh=wb.Sheets['Summary_Helper'];
+  if(!sh) throw new Error('ไม่พบ Sheet "Summary_Helper"');
+  const a=XLSX.utils.sheet_to_json(sh,{header:1,defval:''});
+
+  const monthRaw=String(a[2]?.[3]||a[2]?.[1]||'').trim();
+  // Try to extract month number
+  let monthNum=0;
+  const mMatch=monthRaw.match(/(\d{1,2})/);
+  if(mMatch) monthNum=parseInt(mMatch[1]);
+  // Also try to get from filename
+  if(!monthNum){ const fm=fname.match(/0?(\d{1,2})[-_]/); if(fm) monthNum=parseInt(fm[1]); }
+  const monthLabel=monthNum?(MONTH_NAMES[monthNum]||'เดือน'+monthNum)+' '+(monthRaw.match(/\d{4}/)?.[0]||''):monthRaw||fname.replace(/\.[^.]+$/,'');
+  const monthKey=monthNum?String(monthNum).padStart(2,'0'):monthLabel;
+
+  const mTarget=parseFloat(a[3]?.[1])||0;
+  const mActual=parseFloat(a[3]?.[3])||0;
+  const mGap=parseFloat(a[4]?.[1])||0;
+  const curWeek=String(a[4]?.[3]||'').trim();
+  const totalIssues=parseInt(a[5]?.[1])||0;
+  const recurCauses=parseInt(a[5]?.[3])||0;
+
   const weeklyData=[];
-  for(let i=8;i<sh_arr.length;i++){
-    const r=sh_arr[i];
+  for(let i=8;i<a.length;i++){
+    const r=a[i];
     if(!r[0]||String(r[0]).trim()==='') continue;
     const wk=String(r[0]).trim();
     if(!/^W\d+/.test(wk)) continue;
-    weeklyData.push({
-      week: wk,
-      target: parseFloat(r[1])||0,
-      actual: parseFloat(r[2])||0,
-      gap: parseFloat(r[3])||0,
-      status: String(r[4]||'').trim(),
-      problem: String(r[5]||'').trim(),
-    });
+    weeklyData.push({week:wk,target:parseFloat(r[1])||0,actual:parseFloat(r[2])||0,gap:parseFloat(r[3])||0,status:String(r[4]||'').trim(),problem:String(r[5]||'').trim()});
   }
 
-  // Cause rows: col 7-11, starting at row 8 (Rank,CauseCode,CauseLevel,CauseDescription,Frequency)
   const causes=[];
-  for(let i=8;i<sh_arr.length;i++){
-    const r=sh_arr[i];
+  for(let i=8;i<a.length;i++){
+    const r=a[i];
     if(!r[7]||String(r[7]).trim()==='') continue;
-    const rank=parseInt(r[7]);
-    if(isNaN(rank)||rank<1) continue;
-    causes.push({
-      rank: rank,
-      code: String(r[8]||'').trim(),
-      level: String(r[9]||'').trim(),
-      desc: String(r[10]||'').trim(),
-      freq: parseInt(r[11])||0,
-    });
+    const rank=parseInt(r[7]); if(isNaN(rank)||rank<1) continue;
+    causes.push({rank,code:String(r[8]||'').trim(),level:String(r[9]||'').trim(),desc:String(r[10]||'').trim(),freq:parseInt(r[11])||0});
   }
 
-  // Action summary from rows 20-23 (Cause/Action Level table)
-  // row 20 = header, rows 21-23 = Immediate/Contributing/Root
   const actionSummary=[];
   for(let i=21;i<=23;i++){
-    const r=sh_arr[i];
-    if(!r||!r[0]) continue;
-    const lv=String(r[0]).trim();
-    if(!lv) continue;
-    actionSummary.push({
-      level: lv,
-      causes: parseInt(r[1])||0,
-      logged: parseInt(r[2])||0,
-      done: parseInt(r[3])||0,
-      pct: parseFloat(r[4])||0,
-      action: String(r[7]||'').trim(),
-      owner: String(r[8]||'').trim(),
-      startWeek: String(r[9]||'').trim(),
-      astatus: String(r[10]||'').trim(),
-    });
+    const r=a[i]; if(!r||!r[0]) continue;
+    const lv=String(r[0]).trim(); if(!lv) continue;
+    actionSummary.push({level:lv,causes:parseInt(r[1])||0,logged:parseInt(r[2])||0,done:parseInt(r[3])||0,pct:parseFloat(r[4])||0});
   }
 
-  // Action Plan Detail from rows 27+
-  // row 27 = header: Root Cause/Project, Action Plan Step, Owner, Co-owner, Progress%, Status, Seq
   const actionDetail=[];
   let rootProject='';
-  for(let i=28;i<sh_arr.length;i++){
-    const r=sh_arr[i];
+  for(let i=28;i<a.length;i++){
+    const r=a[i];
     if(r[0]&&String(r[0]).trim()!=='') rootProject=String(r[0]).trim();
-    const seq=parseInt(r[6]);
-    if(isNaN(seq)||seq<1) continue;
-    actionDetail.push({
-      seq, project: rootProject,
-      step: String(r[1]||'').trim(),
-      owner: String(r[2]||'').trim(),
-      coowner: String(r[3]||'').trim(),
-      progress: parseFloat(r[4])||0,
-      status: String(r[5]||'').trim(),
-    });
+    const seq=parseInt(r[6]); if(isNaN(seq)||seq<1) continue;
+    actionDetail.push({seq,project:rootProject,step:String(r[1]||'').trim(),owner:String(r[2]||'').trim(),coowner:String(r[3]||'').trim(),progress:parseFloat(r[4])||0,status:String(r[5]||'').trim()});
   }
 
-  // Also try Input sheet for full cause text per week
   let inputWeekExtra={};
   try{
     const inp=wb.Sheets['Input'];
     if(inp){
-      const inp_arr=XLSX.utils.sheet_to_json(inp,{header:1,defval:''});
-      for(let i=8;i<inp_arr.length;i++){
-        const r=inp_arr[i];
-        const wk=String(r[0]||'').trim();
+      const ia=XLSX.utils.sheet_to_json(inp,{header:1,defval:''});
+      for(let i=8;i<ia.length;i++){
+        const r=ia[i]; const wk=String(r[0]||'').trim();
         if(!/^W\d+/.test(wk)) continue;
-        inputWeekExtra[wk]={
-          immCause: String(r[6]||'').trim(),
-          conCause: String(r[7]||'').trim(),
-          rootCause: String(r[8]||'').trim(),
-        };
+        inputWeekExtra[wk]={immCause:String(r[6]||'').trim(),conCause:String(r[7]||'').trim(),rootCause:String(r[8]||'').trim()};
       }
     }
   }catch(e){}
 
-  DATA={month,mTarget,mActual,mGap,curWeek,totalIssues,recurCauses,weeklyData,causes,actionSummary,actionDetail,inputWeekExtra};
-  renderAll();
+  return{monthKey,monthLabel,monthNum,fileName:fname,mTarget,mActual,mGap,curWeek,totalIssues,recurCauses,weeklyData,causes,actionSummary,actionDetail,inputWeekExtra};
 }
 
-// ============ RENDER ALL ============
-function renderAll(){
-  // Header
-  document.getElementById('monthPill').textContent='📅 '+DATA.month;
-  document.getElementById('branchLabel').textContent='Running Cost ต้นทุนกาว · Current Week: '+DATA.curWeek;
+// ══════════════════════════════════════════════
+//  MODE
+// ══════════════════════════════════════════════
+function setMode(mode){
+  activeMode=mode;
+  document.getElementById('tabSingle').classList.toggle('active',mode==='single');
+  document.getElementById('tabCompare').classList.toggle('active',mode==='compare');
+  document.getElementById('singleView').style.display=mode==='single'?'block':'none';
+  document.getElementById('compareView').style.display=mode==='compare'?'block':'none';
+  document.getElementById('wkDiv').style.display=mode==='single'?'':'none';
+  document.getElementById('wkLabel').style.display=mode==='single'?'':'none';
+  document.getElementById('weekFilter').style.display=mode==='single'?'':'none';
+  if(mode==='single') renderSingle();
+  else renderCompare();
+}
 
-  // KPI
-  document.getElementById('k-target').textContent=DATA.mTarget.toFixed(2);
-  document.getElementById('k-actual').textContent=DATA.mActual.toFixed(2);
-  document.getElementById('k-gap').textContent=(DATA.mGap>0?'+':'')+DATA.mGap.toFixed(3);
-  document.getElementById('k-issues').textContent=DATA.totalIssues;
-  document.getElementById('k-issues-sub').textContent='Recurring Causes: '+DATA.recurCauses;
-  const badge=document.getElementById('k-badge');
-  if(DATA.mGap>0){badge.className='badge over';badge.textContent='▲ Over Target';}
-  else{badge.className='badge ok';badge.textContent='✓ On Target';}
+// ══════════════════════════════════════════════
+//  FILTERS
+// ══════════════════════════════════════════════
+function buildMonthFilter(){
+  const el=document.getElementById('monthFilter');
+  el.innerHTML='';
+  allMonthsData.forEach((m,i)=>{
+    const b=document.createElement('button');
+    b.className='fbtn'+(i===0?' active':'');
+    b.style.cssText=i===0?`background:${m.color}18;border-color:${m.color};color:${m.color};font-weight:600`:'';
+    b.setAttribute('data-mk',m.monthKey);
+    b.textContent=m.monthLabel;
+    b.onclick=function(){ selectMonth(this,m.monthKey); };
+    el.appendChild(b);
+  });
+}
 
-  // Week filter buttons (dynamic)
-  const wf=document.getElementById('weekFilter');
-  wf.innerHTML='<button class="fbtn active" data-v="all" onclick="fWeek(this,\'all\')">All Weeks</button>';
-  DATA.weeklyData.forEach(d=>{
+function selectMonth(btn,mk){
+  document.querySelectorAll('#monthFilter .fbtn').forEach(b=>{
+    b.classList.remove('active');
+    b.style.cssText='';
+  });
+  btn.classList.add('active');
+  const m=allMonthsData.find(x=>x.monthKey===mk);
+  if(m) btn.style.cssText=`background:${m.color}18;border-color:${m.color};color:${m.color};font-weight:600`;
+  activeMonth=mk; activeWeek='all';
+  buildWeekFilter();
+  renderSingle();
+}
+
+function buildWeekFilter(){
+  const m=allMonthsData.find(x=>x.monthKey===activeMonth); if(!m) return;
+  const el=document.getElementById('weekFilter');
+  el.innerHTML='<button class="fbtn active" data-v="all" onclick="fWeek(this,\'all\')">All</button>';
+  m.weeklyData.forEach(d=>{
     const b=document.createElement('button');
     b.className='fbtn'; b.setAttribute('data-v',d.week);
     b.onclick=function(){ fWeek(this,d.week); };
-    b.textContent=d.week; wf.appendChild(b);
+    b.textContent=d.week; el.appendChild(b);
   });
-
-  buildCharts();
-  renderWeekTable();
-  renderCauseTable();
-  renderActionSum();
-  renderActionDetail();
-
-  document.getElementById('uploadOverlay').style.display='none';
-  document.getElementById('dashboard').style.display='block';
 }
 
-// ============ CHARTS ============
-const cOpts={
+function fWeek(btn,v){
+  document.querySelectorAll('#weekFilter .fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeWeek=v;
+  updateSingleCharts(v); renderWeekTable();
+}
+function fStatus(btn,v){
+  document.querySelectorAll('#statusFilter .fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeStatus=v; renderWeekTable();
+  if(activeMode==='compare') renderAllWeekTable();
+}
+function fCause(btn,v){
+  document.querySelectorAll('#causeFilter .fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); activeCause=v; renderCauseTable();
+}
+
+// ══════════════════════════════════════════════
+//  SINGLE MONTH RENDER
+// ══════════════════════════════════════════════
+function renderSingle(){
+  const m=allMonthsData.find(x=>x.monthKey===activeMonth)||allMonthsData[0];
+  if(!m) return;
+  activeMonth=m.monthKey;
+  buildWeekFilter();
+
+  // KPI
+  document.getElementById('k-target').textContent=m.mTarget.toFixed(2);
+  document.getElementById('k-actual').textContent=m.mActual.toFixed(2);
+  document.getElementById('k-gap').textContent=(m.mGap>=0?'+':'')+m.mGap.toFixed(3);
+  document.getElementById('k-issues').textContent=m.totalIssues;
+  document.getElementById('k-isub').textContent='Recurring: '+m.recurCauses;
+  const done=m.actionDetail.filter(a=>a.status==='Done').length;
+  document.getElementById('k-done').textContent=done+'/'+m.actionDetail.length;
+  document.getElementById('k-dsub').textContent='Action Steps';
+  const badge=document.getElementById('k-badge');
+  badge.className=m.mGap>0?'badge over':'badge ok';
+  badge.textContent=m.mGap>0?'▲ Over Target':'✓ On Target';
+
+  buildSingleCharts(m);
+  renderWeekTable();
+  renderCauseTable();
+  renderActionSum(m);
+  renderActionDetail(m);
+}
+
+const C={
   responsive:true,maintainAspectRatio:false,
   plugins:{
     legend:{display:false},
@@ -484,195 +740,319 @@ const cOpts={
   }
 };
 
-function buildCharts(){
-  // destroy old
-  Object.values(charts).forEach(c=>c.destroy());
-  charts={};
-
-  const weeks=DATA.weeklyData;
+function buildSingleCharts(m){
+  ['trend','gap','causeD','actionD','freq'].forEach(k=>{ if(charts[k]){charts[k].destroy();delete charts[k];} });
+  const weeks=m.weeklyData;
   const labels=weeks.map(d=>d.week);
+  const col=m.color;
 
-  // Trend
   charts.trend=new Chart(document.getElementById('trendChart').getContext('2d'),{
     type:'line',
-    data:{
-      labels,
-      datasets:[
-        {label:'Actual',data:weeks.map(d=>d.actual),borderColor:'#f85149',backgroundColor:'rgba(248,81,73,.06)',tension:.4,pointBackgroundColor:'#f85149',pointRadius:5,fill:false,borderWidth:2.5},
-        {label:'Target',data:weeks.map(d=>d.target),borderColor:'#3fb950',tension:0,pointRadius:0,borderDash:[6,4],fill:false,borderWidth:2},
-      ]
-    },
-    options:{...cOpts,scales:{
-      y:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:11}}},
-      x:{grid:{display:false},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:11}}}
+    data:{labels,datasets:[
+      {label:'Actual',data:weeks.map(d=>d.actual),borderColor:col,backgroundColor:col+'18',tension:.4,pointBackgroundColor:col,pointRadius:5,fill:false,borderWidth:2.5},
+      {label:'Target',data:weeks.map(d=>d.target),borderColor:'#3fb950',tension:0,pointRadius:0,borderDash:[6,4],fill:false,borderWidth:2},
+    ]},
+    options:{...C,scales:{
+      y:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:10}}},
+      x:{grid:{display:false},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:10}}}
     }}
   });
 
-  // Gap
   charts.gap=new Chart(document.getElementById('gapChart').getContext('2d'),{
     type:'bar',
-    data:{
-      labels,
-      datasets:[{label:'Gap',data:weeks.map(d=>d.gap),
-        backgroundColor:weeks.map(d=>d.gap>0.2?'rgba(248,81,73,.8)':'rgba(210,153,34,.8)'),
-        borderRadius:6,borderSkipped:false}]
-    },
-    options:{...cOpts,scales:{
-      y:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:11}}},
+    data:{labels,datasets:[{label:'Gap',data:weeks.map(d=>d.gap),
+      backgroundColor:weeks.map(d=>d.gap>0.2?'rgba(248,81,73,.8)':'rgba(210,153,34,.8)'),
+      borderRadius:6,borderSkipped:false}]},
+    options:{...C,scales:{
+      y:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:10}}},
       x:{grid:{display:false},ticks:{color:'#7d8590'}}
     }}
   });
 
-  // Cause donut
   const lvls=['Immediate','Contributing','Root'];
-  const lvlCounts=lvls.map(l=>DATA.causes.filter(c=>c.level===l).length||DATA.actionSummary.find(a=>a.level===l)?.causes||0);
+  const lvlC=lvls.map(l=>m.causes.filter(c=>c.level===l).length||m.actionSummary.find(a=>a.level===l)?.causes||0);
   charts.causeD=new Chart(document.getElementById('causeDonut').getContext('2d'),{
     type:'doughnut',
-    data:{labels:lvls,datasets:[{data:lvlCounts,backgroundColor:['#58a6ff','#d29922','#f85149'],borderWidth:0,hoverOffset:8}]},
-    options:{...cOpts,cutout:'68%',plugins:{...cOpts.plugins,legend:{display:true,position:'bottom',labels:{color:'#7d8590',font:{size:10},boxWidth:9,padding:10}}}}
+    data:{labels:lvls,datasets:[{data:lvlC,backgroundColor:['#58a6ff','#d29922','#f85149'],borderWidth:0,hoverOffset:7}]},
+    options:{...C,cutout:'68%',plugins:{...C.plugins,legend:{display:true,position:'bottom',labels:{color:'#7d8590',font:{size:10},boxWidth:8,padding:8}}}}
   });
 
-  // Action donut
-  const done=DATA.actionDetail.filter(a=>a.status==='Done').length;
-  const inprog=DATA.actionDetail.filter(a=>a.status==='In Progress').length;
-  const onplan=DATA.actionDetail.filter(a=>a.status==='On Plan').length;
+  const dn=m.actionDetail.filter(a=>a.status==='Done').length;
+  const dp=m.actionDetail.filter(a=>a.status==='In Progress').length;
+  const do2=m.actionDetail.filter(a=>a.status==='On Plan').length;
   charts.actionD=new Chart(document.getElementById('actionDonut').getContext('2d'),{
     type:'doughnut',
-    data:{labels:['Done','In Progress','On Plan'],datasets:[{data:[done,inprog,onplan],backgroundColor:['#3fb950','#d29922','#7d8590'],borderWidth:0,hoverOffset:8}]},
-    options:{...cOpts,cutout:'68%',plugins:{...cOpts.plugins,legend:{display:true,position:'bottom',labels:{color:'#7d8590',font:{size:10},boxWidth:9,padding:10}}}}
+    data:{labels:['Done','In Progress','On Plan'],datasets:[{data:[dn,dp,do2],backgroundColor:['#3fb950','#d29922','#7d8590'],borderWidth:0,hoverOffset:7}]},
+    options:{...C,cutout:'68%',plugins:{...C.plugins,legend:{display:true,position:'bottom',labels:{color:'#7d8590',font:{size:10},boxWidth:8,padding:8}}}}
   });
 
-  // Freq bar
-  const topCauses=DATA.causes.slice(0,6);
+  const tc=m.causes.slice(0,6);
   charts.freq=new Chart(document.getElementById('freqChart').getContext('2d'),{
     type:'bar',
-    data:{
-      labels:topCauses.map(c=>c.code),
-      datasets:[{data:topCauses.map(c=>c.freq),
-        backgroundColor:topCauses.map(c=>c.level==='Immediate'?'#58a6ff':c.level==='Contributing'?'#d29922':'#f85149'),
-        borderRadius:5}]
-    },
-    options:{...cOpts,indexAxis:'y',scales:{
-      x:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{size:11}}},
-      y:{grid:{display:false},ticks:{color:'#7d8590',font:{size:11}}}
+    data:{labels:tc.map(c=>c.code),datasets:[{data:tc.map(c=>c.freq),backgroundColor:tc.map(c=>c.level==='Immediate'?'#58a6ff':c.level==='Contributing'?'#d29922':'#f85149'),borderRadius:5}]},
+    options:{...C,indexAxis:'y',scales:{x:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{size:10}}},y:{grid:{display:false},ticks:{color:'#7d8590',font:{size:10}}}}}
+  });
+
+  if(showLabels) applyLabels();
+}
+
+function updateSingleCharts(wFilter){
+  const m=allMonthsData.find(x=>x.monthKey===activeMonth); if(!m) return;
+  const weeks=wFilter==='all'?m.weeklyData:m.weeklyData.filter(d=>d.week===wFilter);
+  const labels=weeks.map(d=>d.week);
+  if(charts.trend){charts.trend.data.labels=labels;charts.trend.data.datasets[0].data=weeks.map(d=>d.actual);charts.trend.data.datasets[1].data=weeks.map(d=>d.target);charts.trend.update();}
+  if(charts.gap){charts.gap.data.labels=labels;charts.gap.data.datasets[0].data=weeks.map(d=>d.gap);charts.gap.data.datasets[0].backgroundColor=weeks.map(d=>d.gap>0.2?'rgba(248,81,73,.8)':'rgba(210,153,34,.8)');charts.gap.update();}
+}
+
+// ══════════════════════════════════════════════
+//  COMPARE RENDER
+// ══════════════════════════════════════════════
+function renderCompare(){
+  ['multiTrend','multiGap','avgCost','actionComp'].forEach(k=>{ if(charts[k]){charts[k].destroy();delete charts[k];} });
+  const months=allMonthsData;
+  const mLabels=months.map(m=>m.monthLabel);
+
+  // KPI summary row
+  const kpiRow=document.getElementById('compareKpiRow');
+  kpiRow.innerHTML=months.map(m=>`
+    <div class="kpi" style="border-top:3px solid ${m.color}">
+      <div class="kpi-lbl">${m.monthLabel}</div>
+      <div class="kpi-val mono" style="color:${m.color}">${m.mActual.toFixed(2)}</div>
+      <div class="kpi-sub">Target: ${m.mTarget.toFixed(2)} · Gap: <span style="color:${m.mGap>0?'var(--red)':'var(--green)'}">${m.mGap>=0?'+':''}${m.mGap.toFixed(2)}</span></div>
+      <div class="badge ${m.mGap>0?'over':'ok'}">${m.mGap>0?'▲ Over':'✓ OK'}</div>
+    </div>`).join('');
+
+  // Multi-line trend (each month = one line, x = W1..Wn)
+  const allWeeks=[...new Set(months.flatMap(m=>m.weeklyData.map(d=>d.week)))].sort();
+  const multiDatasets=months.map(m=>({
+    label:m.monthLabel,
+    data:allWeeks.map(w=>{ const wd=m.weeklyData.find(d=>d.week===w); return wd?wd.actual:null; }),
+    borderColor:m.color,backgroundColor:m.color+'18',tension:.4,
+    pointBackgroundColor:m.color,pointRadius:4,fill:false,borderWidth:2,spanGaps:true,
+  }));
+  // Add target line (use first month target as reference)
+  multiDatasets.push({label:'Target',data:allWeeks.map(()=>months[0].mTarget),borderColor:'#3fb950',tension:0,pointRadius:0,borderDash:[5,4],fill:false,borderWidth:1.5,spanGaps:true});
+
+  charts.multiTrend=new Chart(document.getElementById('multiTrendChart').getContext('2d'),{
+    type:'line',
+    data:{labels:allWeeks,datasets:multiDatasets},
+    options:{...C,plugins:{...C.plugins,legend:{display:false}},scales:{
+      y:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:10}}},
+      x:{grid:{display:false},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:10}}}
     }}
   });
+  // Legend
+  const legEl=document.getElementById('multiTrendLegend');
+  legEl.innerHTML=months.map(m=>`<div class="leg"><div class="ldot" style="background:${m.color}"></div>${m.monthLabel}</div>`).join('')+
+    '<div class="leg"><div class="lline" style="background:var(--green)"></div>Target</div>';
+
+  // Grouped gap bar
+  const gapDatasets=months.map(m=>({
+    label:m.monthLabel,
+    data:allWeeks.map(w=>{ const wd=m.weeklyData.find(d=>d.week===w); return wd?wd.gap:null; }),
+    backgroundColor:m.color+'bb',borderRadius:4,
+  }));
+  charts.multiGap=new Chart(document.getElementById('multiGapChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:allWeeks,datasets:gapDatasets},
+    options:{...C,plugins:{...C.plugins,legend:{display:true,position:'top',labels:{color:'#7d8590',font:{size:10},boxWidth:8,padding:8}}},scales:{
+      y:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{size:10}}},
+      x:{grid:{display:false},ticks:{color:'#7d8590'}}
+    }}
+  });
+
+  // Avg cost bar per month
+  charts.avgCost=new Chart(document.getElementById('avgCostChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:mLabels,datasets:[
+      {label:'Actual',data:months.map(m=>m.mActual),backgroundColor:months.map(m=>m.color+'cc'),borderRadius:6},
+      {label:'Target',data:months.map(m=>m.mTarget),backgroundColor:'rgba(63,185,80,.25)',borderRadius:6,borderWidth:1,borderColor:'#3fb950'},
+    ]},
+    options:{...C,plugins:{...C.plugins,legend:{display:true,position:'top',labels:{color:'#7d8590',font:{size:10},boxWidth:8,padding:8}}},scales:{
+      y:{grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{family:'IBM Plex Mono',size:10}}},
+      x:{grid:{display:false},ticks:{color:'#7d8590'}}
+    }}
+  });
+
+  // Action completion
+  charts.actionComp=new Chart(document.getElementById('actionCompChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:mLabels,datasets:[{
+      label:'% Done',
+      data:months.map(m=>{ const t=m.actionDetail.length; const d=m.actionDetail.filter(a=>a.status==='Done').length; return t?Math.round(d/t*100):0; }),
+      backgroundColor:months.map(m=>m.color+'bb'),borderRadius:6,
+    }]},
+    options:{...C,scales:{
+      y:{min:0,max:100,grid:{color:'rgba(48,54,61,.6)'},ticks:{color:'#7d8590',font:{size:10},callback:v=>v+'%'}},
+      x:{grid:{display:false},ticks:{color:'#7d8590'}}
+    }}
+  });
+
+  // Insights
+  renderInsights(months);
+  renderAllWeekTable();
 }
 
-function updateCharts(wFilter){
-  const weeks=wFilter==='all'?DATA.weeklyData:DATA.weeklyData.filter(d=>d.week===wFilter);
-  const labels=weeks.map(d=>d.week);
-  charts.trend.data.labels=labels;
-  charts.trend.data.datasets[0].data=weeks.map(d=>d.actual);
-  charts.trend.data.datasets[1].data=weeks.map(d=>d.target);
-  charts.trend.update();
-  charts.gap.data.labels=labels;
-  charts.gap.data.datasets[0].data=weeks.map(d=>d.gap);
-  charts.gap.data.datasets[0].backgroundColor=weeks.map(d=>d.gap>0.2?'rgba(248,81,73,.8)':'rgba(210,153,34,.8)');
-  charts.gap.update();
+function renderInsights(months){
+  const grid=document.getElementById('insightGrid');
+  const actuals=months.map(m=>m.mActual);
+  const gaps=months.map(m=>m.mGap);
+  const bestMonth=months.reduce((a,b)=>a.mActual<b.mActual?a:b);
+  const worstMonth=months.reduce((a,b)=>a.mActual>b.mActual?a:b);
+  const avgActual=(actuals.reduce((a,b)=>a+b,0)/actuals.length).toFixed(2);
+  const avgGap=(gaps.reduce((a,b)=>a+b,0)/gaps.length).toFixed(3);
+  // Trend direction
+  let trendTxt='', trendClass='trend-same';
+  if(months.length>=2){
+    const diff=months[months.length-1].mActual-months[0].mActual;
+    if(diff>0.05){ trendTxt='ต้นทุนเพิ่มขึ้น ▲'; trendClass='trend-up'; }
+    else if(diff<-0.05){ trendTxt='ต้นทุนลดลง ▼'; trendClass='trend-down'; }
+    else{ trendTxt='ต้นทุนทรงตัว →'; trendClass='trend-same'; }
+  }
+  // Over target months count
+  const overCount=months.filter(m=>m.mGap>0).length;
+
+  grid.innerHTML=`
+    <div class="insight-card"><div class="ic-label">เดือนต้นทุนต่ำสุด</div><div class="ic-val" style="color:var(--green)">${bestMonth.monthLabel}</div><div class="ic-sub">Actual ${bestMonth.mActual.toFixed(2)} ฿/Kg</div></div>
+    <div class="insight-card"><div class="ic-label">เดือนต้นทุนสูงสุด</div><div class="ic-val" style="color:var(--red)">${worstMonth.monthLabel}</div><div class="ic-sub">Actual ${worstMonth.mActual.toFixed(2)} ฿/Kg</div></div>
+    <div class="insight-card"><div class="ic-label">ต้นทุนเฉลี่ยทุกเดือน</div><div class="ic-val mono" style="color:var(--blue)">${avgActual}</div><div class="ic-sub">฿/Kg (avg actual)</div></div>
+    <div class="insight-card"><div class="ic-label">Gap เฉลี่ยทุกเดือน</div><div class="ic-val mono" style="color:var(--yellow)">${avgGap>=0?'+':''}${avgGap}</div><div class="ic-sub">฿/Kg vs Target</div></div>
+    <div class="insight-card"><div class="ic-label">เดือนที่เกิน Target</div><div class="ic-val" style="color:var(--red)">${overCount}/${months.length}</div><div class="ic-sub">เดือน Over Target</div></div>
+    ${months.length>=2?`<div class="insight-card"><div class="ic-label">แนวโน้มต้นทุน</div><div class="ic-val ${trendClass}" style="font-size:14px">${trendTxt}</div><div class="ic-sub">${months[0].monthLabel} → ${months[months.length-1].monthLabel}</div></div>`:''}
+    ${months.length>=2?`<div class="insight-card"><div class="ic-label">การเปลี่ยนแปลง</div><div class="ic-val mono ${months[months.length-1].mActual>months[0].mActual?'trend-up':'trend-down'}" style="font-size:18px">${(months[months.length-1].mActual-months[0].mActual)>=0?'+':''}${(months[months.length-1].mActual-months[0].mActual).toFixed(3)}</div><div class="ic-sub">฿/Kg (${months[0].monthLabel}→${months[months.length-1].monthLabel})</div></div>`:''}
+  `;
 }
 
-// ============ TABLES ============
-function causeSpan(l){
-  if(l==='Immediate') return '<span class="sp-imm">Immediate</span>';
-  if(l==='Contributing') return '<span class="sp-con">Contributing</span>';
-  return '<span class="sp-root">Root</span>';
-}
-function statusSpan(s){
-  if(s==='Red') return '<span class="sp-red">Red</span>';
-  if(s==='Green') return '<span class="sp-green">Green</span>';
-  if(s==='Yellow') return '<span class="sp-yellow">Yellow</span>';
-  return '<span style="color:var(--muted);font-size:11px">'+s+'</span>';
-}
-function actionSpan(s){
-  if(s==='Done') return '<span class="sp-green">Done</span>';
-  if(s==='In Progress') return '<span class="sp-yellow">In Progress</span>';
-  return '<span style="color:var(--muted);font-size:11px">'+s+'</span>';
+function renderAllWeekTable(){
+  const tbody=document.getElementById('allWeekTbody');
+  let rows=allMonthsData.flatMap(m=>m.weeklyData.map(d=>({...d,monthLabel:m.monthLabel,color:m.color})));
+  if(activeStatus!=='all') rows=rows.filter(r=>r.status===activeStatus);
+  tbody.innerHTML=rows.map(r=>`<tr>
+    <td><span class="mchip" style="background:${r.color}22;color:${r.color}">${r.monthLabel}</span></td>
+    <td class="mono" style="color:var(--blue);font-weight:600">${r.week}</td>
+    <td class="mono">${r.target.toFixed(2)}</td>
+    <td class="mono" style="color:${r.actual>r.target?'var(--red)':'var(--green)'}">${r.actual.toFixed(2)}</td>
+    <td class="mono" style="color:var(--yellow)">${r.gap>=0?'+':''}${r.gap.toFixed(2)}</td>
+    <td>${statusSpan(r.status)}</td>
+    <td style="font-size:10px;color:var(--muted)">${r.problem}</td>
+  </tr>`).join('');
+  document.getElementById('allWkLbl').textContent='Total: '+rows.length+' สัปดาห์';
 }
 
+// ══════════════════════════════════════════════
+//  SINGLE TABLES
+// ══════════════════════════════════════════════
 function renderWeekTable(){
-  let rows=DATA.weeklyData;
+  const m=allMonthsData.find(x=>x.monthKey===activeMonth); if(!m) return;
+  let rows=m.weeklyData;
   if(activeWeek!=='all') rows=rows.filter(d=>d.week===activeWeek);
   if(activeStatus!=='all') rows=rows.filter(d=>d.status===activeStatus);
-  document.getElementById('wkTableLbl').textContent='Showing: '+(activeWeek==='all'?'All Weeks':activeWeek)+(activeStatus!=='all'?' · '+activeStatus:'');
-  const extra=DATA.inputWeekExtra;
+  document.getElementById('wkTableLbl').textContent=(activeWeek==='all'?'All':(activeWeek))+(activeStatus!=='all'?' · '+activeStatus:'');
   document.getElementById('weekTbody').innerHTML=rows.map(d=>{
-    const ex=extra[d.week]||{};
+    const ex=m.inputWeekExtra[d.week]||{};
     return`<tr>
       <td class="mono" style="color:var(--blue);font-weight:600">${d.week}</td>
       <td class="mono">${d.target.toFixed(2)}</td>
       <td class="mono" style="color:var(--red)">${d.actual.toFixed(2)}</td>
       <td class="mono" style="color:var(--yellow)">${d.gap>=0?'+':''}${d.gap.toFixed(2)}</td>
       <td>${statusSpan(d.status)}</td>
-      <td style="font-size:11px;color:var(--muted)">${d.problem}</td>
-      <td style="font-size:11px;color:var(--blue)">${ex.immCause||'—'}</td>
-      <td style="font-size:11px;color:var(--yellow)">${ex.conCause||'—'}</td>
-      <td style="font-size:11px;color:var(--red)">${ex.rootCause||'—'}</td>
+      <td style="font-size:10px;color:var(--muted)">${d.problem}</td>
+      <td style="font-size:10px;color:var(--blue)">${ex.immCause||'—'}</td>
+      <td style="font-size:10px;color:var(--yellow)">${ex.conCause||'—'}</td>
+      <td style="font-size:10px;color:var(--red)">${ex.rootCause||'—'}</td>
     </tr>`;
   }).join('');
 }
 
 function renderCauseTable(){
-  let rows=DATA.causes;
+  const m=allMonthsData.find(x=>x.monthKey===activeMonth); if(!m) return;
+  let rows=m.causes;
   if(activeCause!=='all') rows=rows.filter(c=>c.level===activeCause);
-  document.getElementById('causeTblLbl').textContent=activeCause==='all'?'All Levels':activeCause;
+  document.getElementById('causeTblLbl').textContent=activeCause==='all'?'All':activeCause;
   document.getElementById('causeTbody').innerHTML=rows.map(c=>`
     <tr>
       <td class="mono" style="color:var(--muted)">#${c.rank}</td>
       <td><span class="mono" style="color:var(--blue);font-weight:600">${c.code}</span></td>
       <td>${causeSpan(c.level)}</td>
-      <td style="font-size:11px;color:var(--muted);max-width:260px">${c.desc}</td>
+      <td style="font-size:10px;color:var(--muted);max-width:240px">${c.desc}</td>
       <td class="mono" style="color:var(--yellow)">${c.freq}</td>
     </tr>`).join('');
 }
 
-function renderActionSum(){
-  document.getElementById('actionSumTbody').innerHTML=DATA.actionSummary.map(a=>{
-    const pctNum=a.pct<=1?a.pct*100:a.pct;
-    const pc=pctNum>=100?'g':pctNum>0?'y':'r';
+function renderActionSum(m){
+  document.getElementById('actionSumTbody').innerHTML=m.actionSummary.map(a=>{
+    const p=a.pct<=1?a.pct*100:a.pct; const pc=p>=100?'g':p>0?'y':'r';
     return`<tr>
-      <td>${causeSpan(a.level)}</td>
-      <td class="mono">${a.causes}</td>
-      <td class="mono">${a.logged}</td>
+      <td>${causeSpan(a.level)}</td><td class="mono">${a.causes}</td><td class="mono">${a.logged}</td>
       <td class="mono" style="color:${a.done>0?'var(--green)':'var(--muted)'}">${a.done}</td>
-      <td><span class="mono" style="font-size:11px">${pctNum.toFixed(0)}%</span>
-      <div class="pbar-bg"><div class="pbar ${pc}" style="width:${Math.min(pctNum,100)}%"></div></div></td>
+      <td><span class="mono" style="font-size:10px">${p.toFixed(0)}%</span><div class="pbar-bg"><div class="pbar ${pc}" style="width:${Math.min(p,100)}%"></div></div></td>
     </tr>`;
   }).join('');
 }
 
-function renderActionDetail(){
-  if(!DATA.actionDetail||DATA.actionDetail.length===0){ document.getElementById('actionDetailSection').style.display='none'; return; }
+function renderActionDetail(m){
+  if(!m.actionDetail||!m.actionDetail.length){ document.getElementById('actionDetailSection').style.display='none'; return; }
   document.getElementById('actionDetailSection').style.display='block';
-  document.getElementById('actionDetailTitle').textContent=DATA.actionDetail[0]?.project||'';
-  document.getElementById('actionDetailTbody').innerHTML=DATA.actionDetail.map(a=>{
-    const p=a.progress<=1?a.progress*100:a.progress;
-    const pc=p>=100?'g':p>0?'b':'r';
+  document.getElementById('actionDetailTitle').textContent=m.actionDetail[0]?.project||'';
+  document.getElementById('actionDetailTbody').innerHTML=m.actionDetail.map(a=>{
+    const p=a.progress<=1?a.progress*100:a.progress; const pc=p>=100?'g':p>0?'b':'r';
     return`<tr>
       <td class="mono" style="color:var(--muted)">${a.seq}</td>
-      <td style="font-size:11px;max-width:320px">${a.step}</td>
-      <td style="font-size:11px;color:var(--blue)">${a.owner}</td>
-      <td style="font-size:11px;color:var(--muted)">${a.coowner}</td>
-      <td><span class="mono" style="font-size:11px">${p.toFixed(0)}%</span>
-      <div class="pbar-bg"><div class="pbar ${pc}" style="width:${Math.min(p,100)}%"></div></div></td>
+      <td style="font-size:10px;max-width:300px">${a.step}</td>
+      <td style="font-size:10px;color:var(--blue)">${a.owner}</td>
+      <td style="font-size:10px;color:var(--muted)">${a.coowner}</td>
+      <td><span class="mono" style="font-size:10px">${p.toFixed(0)}%</span><div class="pbar-bg"><div class="pbar ${pc}" style="width:${Math.min(p,100)}%"></div></div></td>
       <td>${actionSpan(a.status)}</td>
     </tr>`;
   }).join('');
 }
 
-// ============ FILTERS ============
-function fWeek(btn,v){
-  document.querySelectorAll('#weekFilter .fbtn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active'); activeWeek=v;
-  updateCharts(v); renderWeekTable();
+// ══════════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════════
+function statusSpan(s){ return s==='Red'?'<span class="sp-red">Red</span>':s==='Green'?'<span class="sp-green">Green</span>':'<span style="color:var(--muted);font-size:10px">'+s+'</span>'; }
+function causeSpan(l){ return l==='Immediate'?'<span class="sp-imm">Imm.</span>':l==='Contributing'?'<span class="sp-con">Contrib.</span>':'<span class="sp-root">Root</span>'; }
+function actionSpan(s){ return s==='Done'?'<span class="sp-green">Done</span>':s==='In Progress'?'<span class="sp-yellow">In Progress</span>':'<span style="color:var(--muted);font-size:10px">On Plan</span>'; }
+
+// ══════════════════════════════════════════════
+//  SCREENSHOT
+// ══════════════════════════════════════════════
+function takeScreenshot(){
+  const btn=document.getElementById('snapBtn');
+  btn.classList.add('loading'); btn.textContent='⏳ กำลังแคป...';
+  const dash=document.getElementById('dashboard');
+  html2canvas(dash,{backgroundColor:'#0d1117',scale:1.5,useCORS:true,logging:false}).then(canvas=>{
+    const link=document.createElement('a');
+    const d=new Date();
+    link.download='dashboard_'+d.getFullYear()+(d.getMonth()+1).toString().padStart(2,'0')+d.getDate()+'_'+d.getHours().toString().padStart(2,'0')+d.getMinutes().toString().padStart(2,'0')+'.png';
+    link.href=canvas.toDataURL('image/png'); link.click();
+    btn.classList.remove('loading'); btn.textContent='📷 แคปหน้าจอ';
+    const t=document.getElementById('snapToast'); t.style.display='flex';
+    setTimeout(()=>{ t.style.display='none'; },3000);
+  }).catch(e=>{ btn.classList.remove('loading'); btn.textContent='📷 แคปหน้าจอ'; alert('ไม่สำเร็จ: '+e.message); });
 }
-function fStatus(btn,v){
-  document.querySelectorAll('#statusFilter .fbtn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active'); activeStatus=v; renderWeekTable();
+
+// ══════════════════════════════════════════════
+//  LABELS TOGGLE
+// ══════════════════════════════════════════════
+function toggleLabels(){
+  showLabels=!showLabels;
+  const btn=document.getElementById('labelBtn');
+  btn.classList.toggle('label-on',showLabels);
+  btn.textContent=showLabels?'🔢 ซ่อนตัวเลข':'🔢 แสดงตัวเลข';
+  applyLabels();
 }
-function fCause(btn,v){
-  document.querySelectorAll('#causeFilter .fbtn').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active'); activeCause=v; renderCauseTable();
+
+function applyLabels(){
+  const dl=(color,anchor,align,fmt)=>({display:showLabels,color,font:{family:'IBM Plex Mono',size:10,weight:'600'},anchor,align,formatter:fmt,padding:2});
+  if(charts.trend){ charts.trend.data.datasets[0].datalabels=dl('#e6edf3','end','top',v=>v.toFixed(2)); charts.trend.data.datasets[1].datalabels={display:false}; charts.trend.update(); }
+  if(charts.gap){ charts.gap.data.datasets[0].datalabels=dl('#e6edf3','end','top',v=>'+'+v.toFixed(2)); charts.gap.update(); }
+  if(charts.causeD){ charts.causeD.data.datasets[0].datalabels={display:showLabels,color:'#e6edf3',font:{family:'IBM Plex Mono',size:11,weight:'700'},formatter:(v,ctx)=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); return t>0?v+'\n'+(v/t*100).toFixed(0)+'%':''; }}; charts.causeD.update(); }
+  if(charts.actionD){ charts.actionD.data.datasets[0].datalabels={display:showLabels,color:'#e6edf3',font:{family:'IBM Plex Mono',size:11,weight:'700'},formatter:(v,ctx)=>{ const t=ctx.dataset.data.reduce((a,b)=>a+b,0); return t>0&&v>0?v+'\n'+(v/t*100).toFixed(0)+'%':''; }}; charts.actionD.update(); }
+  if(charts.freq){ charts.freq.data.datasets[0].datalabels=dl('#e6edf3','end','right',v=>v); charts.freq.update(); }
+  // compare charts
+  if(charts.avgCost){ charts.avgCost.data.datasets.forEach(ds=>{ ds.datalabels=dl('#e6edf3','end','top',v=>v.toFixed(2)); }); charts.avgCost.update(); }
+  if(charts.actionComp){ charts.actionComp.data.datasets[0].datalabels=dl('#e6edf3','end','top',v=>v+'%'); charts.actionComp.update(); }
 }
 </script>
 </body>
